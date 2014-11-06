@@ -1,3 +1,8 @@
+src/rSGM/*
+src/rSGMv1.0.zip
+*.kdev4
+
+
 # Compiled Object files
 *.slo
 *.lo

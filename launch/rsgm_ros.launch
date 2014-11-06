@@ -1,0 +1,25 @@
+<launch>
+    <arg name="namespace" default="rsgm_ros"/>
+    <param name="use_sim_time" value="true"/>
+    
+    <!-- <node pkg="tf" type="static_transform_publisher" name="map2odom" args="0 0 0 1.57 0 0 map odom 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="map2odom" args="0 0 0 0 0 0 map odom 100" />
+    <!-- <node pkg="tf" type="static_transform_publisher" name="odom2basefootprint" args="0 0 0 0 0 0 odom base_footprint 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="basefootprint2baselink" args="0 0 0 -1.57 0 0 base_footprint base_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="baselink2baseleftcam" args="0.27 0 1.45 0 0 -1.57079632679489661923 base_link base_left_cam 100" />
+    <!-- <node pkg="tf" type="static_transform_publisher" name="baselink2baseleftcam" args="0.27 0 1.65 0 0 -1.57 base_link base_left_cam 100" /> -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="baseleftcam2leftcam" args="0 -0.4 0 0 0 1.57 base_left_cam left_cam 100" /> -->
+    
+    <group ns="$(arg namespace)">
+        <node name="stereo_and_odom" pkg="polar_grid_tracking" type="stereo_and_odom" output="screen" required="true" >
+        </node> 
+        
+        <node pkg="rsgm_ros" type="rsgm_ros" name="rsgm_ros" output="screen" required="true">
+            <remap from="stereo" to="stereo_and_odom" />
+            <remap from="stereo_and_odom/left/$(arg namespace)/image" to="stereo_and_odom/left/image" />
+            <remap from="stereo_and_odom/right/$(arg namespace)/image" to="stereo_and_odom/right/image" />
+            
+            <param name="approximate_sync" value="true" />
+        </node>
+    </group>
+</launch>
