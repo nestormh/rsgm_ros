@@ -23,6 +23,8 @@
 #include <pcl-1.7/pcl/impl/point_types.hpp>
 #include <tiff.h>
 
+#include "rSGM.h"
+
 namespace rsgm_ros {
     
 RSGM_ROS::RSGM_ROS(const std::string& transport)
@@ -45,6 +47,9 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     m_right_sub.subscribe(it, right_topic, 1, transport);
     m_left_info_sub.subscribe(nh, left_info_topic, 1);
     m_right_info_sub.subscribe(nh, right_info_topic, 1);
+    
+    // TODO: This is an initial attempt to access to the main code
+    console(1, NULL);
     
     // Synchronize input topics. Optionally do approximate synchronization.
     bool approx;

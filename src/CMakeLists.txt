@@ -1,6 +1,13 @@
+set(RSGM_FILES 
+    rSGM/src/FastFilters.cpp
+    rSGM/src/rSGMCmd.cpp
+    rSGM/src/StereoBMHelper.cpp
+)
+
 add_executable(rsgm_ros 
     main.cpp
     rsgm_ros.cpp
+    ${RSGM_FILES}
 )
 
 include_directories(rsgm_ros
