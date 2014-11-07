@@ -20,6 +20,14 @@
             <remap from="stereo_and_odom/right/$(arg namespace)/image" to="stereo_and_odom/right/image" />
             
             <param name="approximate_sync" value="true" />
+            
+            <param name="disparity_method" value="hwcs_census_9x7" />
+            <param name="sampling_method" value="striped_sgm" />
+            
+            <param name="paths" value="8" />
+            <param name="threads" value="4" />
+            <param name="strips" value="4" />
+            <param name="disp_count" value="128" />
         </node>
     </group>
 </launch>

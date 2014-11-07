@@ -40,14 +40,28 @@
 #include <tf/transform_listener.h>
 #include <pcl/point_types.h>
 
-#include <time.h>
+// #include <time.h>
+#include <omp.h>
+
+#include "rSGM.h"
+
+
+#include "rSGM/src/MyImage.h"
+
+extern template class MyImage<uint8_t>;
+extern uint32 readNumber(uint8* p, uint32& index);
 
 using namespace std;
 
-#define INIT_CLOCK(start) clock_t start = clock();
-#define RESET_CLOCK(start) start = clock();
-#define END_CLOCK(time, start) float time = (clock() - start) / (float)(CLOCKS_PER_SEC);
-#define END_CLOCK_2(time, start) time = (clock() - start) / (float)(CLOCKS_PER_SEC);
+// #define INIT_CLOCK(start) clock_t start = clock();
+// #define RESET_CLOCK(start) start = clock();
+// #define END_CLOCK(time, start) float time = (clock() - start) / (float)(CLOCKS_PER_SEC);
+// #define END_CLOCK_2(time, start) time = (clock() - start) / (float)(CLOCKS_PER_SEC);
+
+#define INIT_CLOCK(start) double start = omp_get_wtime();
+#define RESET_CLOCK(start) start = omp_get_wtime();
+#define END_CLOCK(time, start) float time = omp_get_wtime() - start;
+#define END_CLOCK_2(time, start) float time = omp_get_wtime() - start;
 
 namespace rsgm_ros {
     
@@ -57,6 +71,8 @@ public:
     RSGM_ROS(const std::string& transport);
     
 protected:
+    enum Disparity_Method_t { METHOD_SGM = 0, METHOD_HCWS_CENSUS = 1 };
+    
     // Constants
     static const uint8_t LT0 = 0;
     static const uint8_t RT0 = 1;
@@ -72,6 +88,8 @@ protected:
     typedef message_filters::Synchronizer<ExactPolicy> ExactSync;
     typedef message_filters::Synchronizer<ApproximatePolicy> ApproximateSync;
     typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
+    typedef uint8_t MyImage_Data_t;
+    typedef MyImage<MyImage_Data_t> MyImage_t;
     
     // Callbacks
     void process(const sensor_msgs::ImageConstPtr& l_image_msg, 
@@ -79,10 +97,18 @@ protected:
                  const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                  const sensor_msgs::CameraInfoConstPtr& r_info_msg);
     
+    MyImage_t fromCVtoMyImage(const cv::Mat & img);
+    cv::Mat fromMyImagetoOpenCV(MyImage_t & myImg);
+    
     // Properties
-    cv::Mat m_leftImage, m_rightImage;
+//     cv::Mat m_leftImage, m_rightImage;
 
     image_geometry::StereoCameraModel m_model;
+    
+    // Parameters
+    uint32_t m_paths, m_threads, m_strips, m_dispCount;
+    Disparity_Method_t m_disparityMethod;
+    Sampling_Method_t m_samplingMethod;
 
     Subscriber m_left_sub, m_right_sub;
     InfoSubscriber m_left_info_sub, m_right_info_sub;
