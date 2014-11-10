@@ -50,6 +50,7 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     local_nh.param("threads", threads, 8);
     local_nh.param("strips", strips, 8);
     local_nh.param("disp_count", dispCount, 64);
+    local_nh.param("downsample", m_downsample, false);
     
     m_paths = paths;
     m_threads = threads;
@@ -124,6 +125,8 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     m_left_info_sub.subscribe(nh, left_info_topic, 1);
     m_right_info_sub.subscribe(nh, right_info_topic, 1);
     
+    m_pointCloud = local_nh.advertise<sensor_msgs::PointCloud2> ("point_cloud", 1);
+    
     // Synchronize input topics. Optionally do approximate synchronization.
     bool approx;
     local_nh.param("approximate_sync", approx, false);
@@ -155,8 +158,6 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     MyImage_t myImgLeft = fromCVtoMyImage(leftImgPtr->image);
     MyImage_t myImgRight = fromCVtoMyImage(rightImgPtr->image);
     
-    MyImage<uint8> disp(myImgLeft.getWidth(), myImgLeft.getHeight());
-    
     // start processing
     float32* dispImgLeft = (float32*)_mm_malloc(myImgLeft.getWidth()*myImgLeft.getHeight()*sizeof(float32), 16);
     float32* dispImgRight = (float32*)_mm_malloc(myImgLeft.getWidth()*myImgLeft.getHeight()*sizeof(float32), 16);
@@ -183,7 +184,16 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
         }
     }
     
-    // write output
+    INIT_CLOCK(startPoinCloudPublish)
+    publish_point_cloud(l_image_msg, dispImgLeft, l_info_msg, r_info_msg);
+    END_CLOCK(totalPointCloudCompute, startPoinCloudPublish)
+    
+    END_CLOCK(totalCompute, startCompute)
+    ROS_INFO("[%s] Publishing point cloud time: %f seconds", __FILE__, totalPointCloudCompute);
+    ROS_INFO("[%s] Total time: %f seconds", __FILE__, totalCompute);
+
+    // TODO: Publish Disparity image
+    MyImage<uint8> disp(myImgLeft.getWidth(), myImgLeft.getHeight());
     uint8* dispOut = disp.getData();
     for (uint32 i = 0; i < myImgLeft.getWidth()*myImgLeft.getHeight(); i++) {
         if (dispImgLeft[i]>0) {
@@ -193,10 +203,6 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
             dispOut[i] = 0;
         }
     }
-    
-    END_CLOCK(totalCompute, startCompute)
-    ROS_INFO("[%s] Total time: %f seconds", __FILE__, totalCompute);
-    
     cv::Mat dispMap = fromMyImagetoOpenCV(disp);
     
     double min = 0;
@@ -215,17 +221,17 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     cv::Mat falseColorsMap;
     applyColorMap(adjMap, falseColorsMap, cv::COLORMAP_RAINBOW);
     
-    cv::imshow("Out", falseColorsMap);
+//     cv::imshow("Out", falseColorsMap);
     
 //     writePGM(disp, "/tmp/disp.pgm", true);
 
 //     cv::imshow("left", leftImg2);
-    uint8_t keycode;
-    keycode = cv::waitKey(200);
-    if (keycode == 27) {
-        exit(0);
-    }
-    ros::spinOnce();
+//     uint8_t keycode;
+//     keycode = cv::waitKey(200);
+//     if (keycode == 27) {
+//         exit(0);
+//     }
+//     ros::spinOnce();
         
 }
 
@@ -255,6 +261,72 @@ cv::Mat RSGM_ROS::fromMyImagetoOpenCV(RSGM_ROS::MyImage_t& myImg)
     memcpy(img.data, data, width * height * sizeof(MyImage_Data_t));
     
     return img;
+}
+
+void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg, 
+                                   float32* l_disp_data,
+                                   const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
+                                   const sensor_msgs::CameraInfoConstPtr& r_info_msg)
+{
+    try
+    {
+    
+        const cv::Mat leftImg = (cv_bridge::toCvShare(l_image_msg, sensor_msgs::image_encodings::RGB8))->image;
+        
+        const int32_t & l_width = leftImg.cols;
+        const int32_t & l_height = leftImg.rows;
+        
+        image_geometry::StereoCameraModel model;
+        model.fromCameraInfo(*l_info_msg, *r_info_msg);
+        
+        PointCloud::Ptr point_cloud(new PointCloud());
+        point_cloud->width = 1;
+        point_cloud->points.reserve(l_width * l_height);
+        
+        uint32_t dSample = 1;
+        if (m_downsample)
+            dSample = 2;
+        
+        for (uint32_t u = 0; u < l_width; u += dSample) {
+            for (uint32_t v = 0; v < l_height; v += dSample) {
+                uint32_t index = v * l_width + u;
+                
+                if (l_disp_data[index] > 0) {
+                    
+                    cv::Point2d left_uv;
+                    left_uv.x = u;
+                    left_uv.y = v;
+
+                    cv::Point3d point;
+                    model.projectDisparityTo3d(left_uv, l_disp_data[index], point);
+                    
+                    PointType pointPCL;
+                    
+                    pointPCL.x = point.x;
+                    pointPCL.y = point.y;
+                    pointPCL.z = point.z;
+                    const cv::Vec3b & pointColor = leftImg.at<cv::Vec3b>(v, u);
+                    pointPCL.r = pointColor[0];
+                    pointPCL.g = pointColor[1];
+                    pointPCL.b = pointColor[2];
+                    
+                    point_cloud->push_back(pointPCL);
+                }
+            }
+        }
+        
+        sensor_msgs::PointCloud2 cloudMsg;
+        pcl::toROSMsg (*point_cloud, cloudMsg);
+        cloudMsg.header.frame_id = l_info_msg->header.frame_id;
+        cloudMsg.header.stamp = ros::Time::now();
+        cloudMsg.header.seq = l_info_msg->header.seq;
+        
+        m_pointCloud.publish(cloudMsg);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+    }
 }
 
 }

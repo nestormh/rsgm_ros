@@ -2,13 +2,7 @@
     <arg name="namespace" default="rsgm_ros"/>
     <param name="use_sim_time" value="true"/>
     
-    <!-- <node pkg="tf" type="static_transform_publisher" name="map2odom" args="0 0 0 1.57 0 0 map odom 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="map2odom" args="0 0 0 0 0 0 map odom 100" />
-    <!-- <node pkg="tf" type="static_transform_publisher" name="odom2basefootprint" args="0 0 0 0 0 0 odom base_footprint 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="basefootprint2baselink" args="0 0 0 -1.57 0 0 base_footprint base_link 100" />
-    <node pkg="tf" type="static_transform_publisher" name="baselink2baseleftcam" args="0.27 0 1.45 0 0 -1.57079632679489661923 base_link base_left_cam 100" />
-    <!-- <node pkg="tf" type="static_transform_publisher" name="baselink2baseleftcam" args="0.27 0 1.65 0 0 -1.57 base_link base_left_cam 100" /> -->
-    <!-- <node pkg="tf" type="static_transform_publisher" name="baseleftcam2leftcam" args="0 -0.4 0 0 0 1.57 base_left_cam left_cam 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="map2odom" args="0 10 0 0 0 0 map base_left_cam 100" />
     
     <group ns="$(arg namespace)">
         <node name="stereo_and_odom" pkg="polar_grid_tracking" type="stereo_and_odom" output="screen" required="true" >
@@ -21,13 +15,20 @@
             
             <param name="approximate_sync" value="true" />
             
+<!--             sgm_5x5, hwcs_census_9x7 -->
             <param name="disparity_method" value="hwcs_census_9x7" />
+<!--             standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4 -->
             <param name="sampling_method" value="striped_sgm" />
             
             <param name="paths" value="8" />
             <param name="threads" value="4" />
             <param name="strips" value="4" />
-            <param name="disp_count" value="128" />
+            <param name="disp_count" value="64" />
+            
+            <param name="downsample" value="false" />
         </node>
     </group>
+    
+    <node pkg="rviz" type="rviz" name="rviz" required="false"  args="&#45;&#45;display-config 
+          $(find rsgm_ros)/config/rsgm_ros.rviz"/>
 </launch>

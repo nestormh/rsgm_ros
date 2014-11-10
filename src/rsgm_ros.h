@@ -87,7 +87,8 @@ protected:
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo, sensor_msgs::CameraInfo> ApproximatePolicy;
     typedef message_filters::Synchronizer<ExactPolicy> ExactSync;
     typedef message_filters::Synchronizer<ApproximatePolicy> ApproximateSync;
-    typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
+    typedef pcl::PointXYZRGB PointType;
+    typedef pcl::PointCloud<PointType> PointCloud;
     typedef uint8_t MyImage_Data_t;
     typedef MyImage<MyImage_Data_t> MyImage_t;
     
@@ -96,6 +97,13 @@ protected:
                  const sensor_msgs::ImageConstPtr& r_image_msg,
                  const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                  const sensor_msgs::CameraInfoConstPtr& r_info_msg);
+    
+    
+    
+    void publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg, 
+                             float32* l_disp_data,
+                             const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
+                             const sensor_msgs::CameraInfoConstPtr& r_info_msg);
     
     MyImage_t fromCVtoMyImage(const cv::Mat & img);
     cv::Mat fromMyImagetoOpenCV(MyImage_t & myImg);
@@ -109,9 +117,11 @@ protected:
     uint32_t m_paths, m_threads, m_strips, m_dispCount;
     Disparity_Method_t m_disparityMethod;
     Sampling_Method_t m_samplingMethod;
+    bool m_downsample;
 
     Subscriber m_left_sub, m_right_sub;
     InfoSubscriber m_left_info_sub, m_right_info_sub;
+    ros::Publisher m_pointCloud;
     
     boost::shared_ptr<ExactSync> m_exact_sync;
     boost::shared_ptr<ApproximateSync> m_approximate_sync;
