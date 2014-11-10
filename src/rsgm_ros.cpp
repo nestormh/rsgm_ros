@@ -47,8 +47,8 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     local_nh.param("queue_size", queue_size, 10);
     
     local_nh.param("paths", paths, 8);
-    local_nh.param("threads", threads, 4);
-    local_nh.param("strips", strips, 4);
+    local_nh.param("threads", threads, 8);
+    local_nh.param("strips", strips, 8);
     local_nh.param("disp_count", dispCount, 64);
     
     m_paths = paths;
@@ -82,6 +82,22 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
         ROS_ERROR("sampling_method %s not valid!. Try: [%s, %s, %s. %s]", 
                   samplingMethod.c_str(), SAMPLING_NAMES_STANDARD_SGM.c_str(), SAMPLING_NAMES_STRIPED_SGM.c_str(),
                   SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2.c_str(), SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4.c_str());
+        ROS_INFO("Aborting...");
+        exit(0);
+    }
+    
+    if (m_threads != 2 && m_threads != 4 && m_threads != 8) {
+        ROS_ERROR("The number of threads is %d", m_threads);
+        ROS_ERROR("It should be 2, 4 or 8!!!");
+        ROS_INFO("Aborting...");
+        exit(0);
+    }
+
+    if ((m_strips / m_threads == 0) || (m_strips % m_threads != 0)) {
+        ROS_ERROR("The number of strips can not be smaller than the number of threads!!!");
+        ROS_ERROR("Division between the number of strips and threads should be exact!!!");
+        ROS_ERROR("Number of threads: %d", m_threads);
+        ROS_ERROR("Number of strips: %d", m_strips);
         ROS_INFO("Aborting...");
         exit(0);
     }
