@@ -13,19 +13,7 @@
             <remap from="stereo_and_odom/left/$(arg namespace)/image" to="stereo_and_odom/left/image" />
             <remap from="stereo_and_odom/right/$(arg namespace)/image" to="stereo_and_odom/right/image" />
             
-            <param name="approximate_sync" value="true" />
-            
-<!--             sgm_5x5, hwcs_census_9x7 -->
-            <param name="disparity_method" value="hwcs_census_9x7" />
-<!--             standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4 -->
-            <param name="sampling_method" value="striped_sgm" />
-            
-            <param name="paths" value="8" />
-            <param name="threads" value="4" />
-            <param name="strips" value="4" />
-            <param name="disp_count" value="64" />
-            
-            <param name="downsample" value="false" />
+            <rosparam file="$(find rsgm_ros)/params/rsgm_ros_params.yaml" command="load" ns="" />
         </node>
     </group>
     

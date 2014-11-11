@@ -34,6 +34,9 @@ const static string SAMPLING_NAMES_STRIPED_SGM = "striped_sgm";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2 = "striped_sgm_subsample_2";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4 = "striped_sgm_subsample_4";
 
+// Just for debugging. Forces the use of the same frame at each iteration
+#define REPEAT_FRAME
+
 namespace rsgm_ros {
     
 RSGM_ROS::RSGM_ROS(const std::string& transport)
@@ -41,21 +44,38 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     ros::NodeHandle nh;
     int queue_size;
     string dispMethod, samplingMethod;
-    int paths, threads, strips, dispCount;
+    int threads, strips, dispCount;
     
     ros::NodeHandle local_nh("~");
     local_nh.param("queue_size", queue_size, 10);
     
-    local_nh.param("paths", paths, 8);
     local_nh.param("threads", threads, 8);
     local_nh.param("strips", strips, 8);
     local_nh.param("disp_count", dispCount, 64);
     local_nh.param("downsample", m_downsample, false);
     
-    m_paths = paths;
     m_threads = threads;
     m_strips = strips;
     m_dispCount = dispCount;
+    
+    local_nh.param("lr_check", m_params.lrCheck, true);
+    local_nh.param("median_filter", m_params.MedianFilter, false);
+    local_nh.param("paths", m_params.Paths, 8);
+    local_nh.param("sub_pixel_refine", m_params.subPixelRefine, 0);
+    local_nh.param("number_of_passes", m_params.NoPasses, 2);
+    local_nh.param("rl_check", m_params.rlCheck, false);
+    local_nh.param("invalid_disparity_cost", m_params.InvalidDispCost, 16);
+    local_nh.param("gamma", m_params.Gamma, 100);
+    local_nh.param("alpha", m_params.Alpha, 0.0);
+    local_nh.param("p1", m_params.P1, 10);
+    local_nh.param("p2", m_params.P2min, 50);
+    local_nh.param("uniqueness", m_params.Uniqueness, 0.90);
+    local_nh.param("despeckle_filter", m_params.DespeckleFilter, true);
+    local_nh.param("min_speckle_segment_size", m_params.MinSpeckleSegmentSize, 100);
+    local_nh.param("speckle_sim_threshold", m_params.SpeckleSimThreshold, 1.0);
+    local_nh.param("adaptive_mean_filter", m_params.AdaptiveMeanFilter, true);
+    local_nh.param("gap_filter", m_params.GapFilter, true);
+
     
     local_nh.param("disparity_method", dispMethod, DISPARITY_NAMES_HCWS_CENSUS_9x7);
     local_nh.param("sampling_method", samplingMethod, SAMPLING_NAMES_STRIPED_SGM);
@@ -105,12 +125,29 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     
     ROS_INFO("PARAMS INFO");
     ROS_INFO("===========");
-    ROS_INFO("paths: %d", m_paths);
     ROS_INFO("threads: %d", m_threads);
     ROS_INFO("strips: %d", m_strips);
     ROS_INFO("disp_count: %d", m_dispCount);
     ROS_INFO("disparity_method: %s", dispMethod.c_str());
     ROS_INFO("sampling_method: %s", samplingMethod.c_str());
+    ROS_INFO("lr_check %d", m_params.lrCheck);
+    ROS_INFO("median_filter %d", m_params.MedianFilter);
+    ROS_INFO("paths %d", m_params.Paths);
+    ROS_INFO("sub_pixel_refine %d", m_params.subPixelRefine);
+    ROS_INFO("number_of_passes %d", m_params.NoPasses);
+    ROS_INFO("rl_check %d", m_params.rlCheck);
+    ROS_INFO("invalid_disparity_cost %d", m_params.InvalidDispCost);
+    ROS_INFO("gamma %d", m_params.Gamma);
+    ROS_INFO("alpha %f", m_params.Alpha);
+    ROS_INFO("p1 %d", m_params.P1);
+    ROS_INFO("p2 %d", m_params.P2min);
+    ROS_INFO("uniqueness %f", m_params.Uniqueness);
+    ROS_INFO("despeckle_filter %d", m_params.DespeckleFilter);
+    ROS_INFO("min_speckle_segment_size %d", m_params.MinSpeckleSegmentSize);
+    ROS_INFO("speckle_sim_threshold %f", m_params.SpeckleSimThreshold);
+    ROS_INFO("adaptive_mean_filter %d", m_params.AdaptiveMeanFilter);
+    ROS_INFO("gap_filter %d", m_params.GapFilter);
+
     
     // Topics
     std::string stereo_ns = nh.resolveName("stereo");
@@ -155,8 +192,16 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     rightImgPtr = cv_bridge::toCvShare(r_image_msg, sensor_msgs::image_encodings::MONO8);
     m_model.fromCameraInfo(*l_info_msg, *r_info_msg);
     
+#ifndef REPEAT_FRAME
     MyImage_t myImgLeft = fromCVtoMyImage(leftImgPtr->image);
     MyImage_t myImgRight = fromCVtoMyImage(rightImgPtr->image);
+#else
+    cv::Mat imgLeft = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_02/data/0000000027.png", 0);
+    cv::Mat imgRight = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_03/data/0000000027.png", 0);
+
+    MyImage_t myImgLeft = fromCVtoMyImage(imgLeft);
+    MyImage_t myImgRight = fromCVtoMyImage(imgRight);
+#endif
     
     // start processing
     float32* dispImgLeft = (float32*)_mm_malloc(myImgLeft.getWidth()*myImgLeft.getHeight()*sizeof(float32), 16);
@@ -170,13 +215,19 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
         case METHOD_SGM: {
             processCensus5x5SGM(leftImg, rightImg, dispImgLeft, dispImgRight, 
                                 myImgLeft.getWidth(), myImgLeft.getHeight(),
-                                m_disparityMethod, m_paths, m_threads, m_strips, m_dispCount);
+                                m_disparityMethod, m_params.Paths, m_threads, m_strips, m_dispCount);
             break;
         }
         case METHOD_HCWS_CENSUS: {
+            StereoSGMParams_t params(m_params.P1, m_params.InvalidDispCost, m_params.NoPasses, m_params.Paths,
+                                     m_params.Uniqueness, m_params.MedianFilter, m_params.lrCheck, m_params.rlCheck,
+                                     m_params.lrThreshold, m_params.subPixelRefine, m_params.Alpha, m_params.Gamma,
+                                     m_params.P2min, m_params.AdaptiveMeanFilter, m_params.DespeckleFilter, m_params.GapFilter,
+                                     m_params.MinSpeckleSegmentSize, m_params.SpeckleSimThreshold);
+            
             processCensus9x7SGM(leftImg, rightImg, dispImgLeft, dispImgRight, 
                                 myImgLeft.getWidth(), myImgLeft.getHeight(),
-                                m_disparityMethod, m_paths, m_threads, m_strips, m_dispCount);
+                                m_disparityMethod, params.Paths, m_threads, m_strips, m_dispCount, params);
             break;
         }
         default: {
@@ -193,46 +244,30 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     ROS_INFO("[%s] Total time: %f seconds", __FILE__, totalCompute);
 
     // TODO: Publish Disparity image
-    MyImage<uint8> disp(myImgLeft.getWidth(), myImgLeft.getHeight());
-    uint8* dispOut = disp.getData();
-    for (uint32 i = 0; i < myImgLeft.getWidth()*myImgLeft.getHeight(); i++) {
-        if (dispImgLeft[i]>0) {
-            dispOut[i] = (uint8)dispImgLeft[i];
+    {
+        MyImage<uint8> disp(myImgLeft.getWidth(), myImgLeft.getHeight());
+        uint8* dispOut = disp.getData();
+        for (uint32 i = 0; i < myImgLeft.getWidth()*myImgLeft.getHeight(); i++) {
+            if (dispImgLeft[i]>0) {
+                dispOut[i] = (uint8)dispImgLeft[i];
+            }
+            else {
+                dispOut[i] = 0;
+            }
         }
-        else {
-            dispOut[i] = 0;
-        }
-    }
-    cv::Mat dispMap = fromMyImagetoOpenCV(disp);
+        cv::Mat dispMap = fromMyImagetoOpenCV(disp);
     
-    double min = 0;
-    double max = m_dispCount;
-//     cv::minMaxIdx(dispMap, &min, &max);
-    cv::Mat adjMap;
-    // expand your range to 0..255. Similar to histEq();
-    dispMap.convertTo(adjMap,CV_8UC1, 255 / (max-min), -min); 
-    cout << "min " << min << endl;
-    cout << "max " << max << endl;
-    
-    // this is great. It converts your grayscale image into a tone-mapped one, 
-    // much more pleasing for the eye
-    // function is found in contrib module, so include contrib.hpp 
-    // and link accordingly
-    cv::Mat falseColorsMap;
-    applyColorMap(adjMap, falseColorsMap, cv::COLORMAP_RAINBOW);
-    
-//     cv::imshow("Out", falseColorsMap);
-    
-//     writePGM(disp, "/tmp/disp.pgm", true);
-
-//     cv::imshow("left", leftImg2);
-//     uint8_t keycode;
-//     keycode = cv::waitKey(200);
-//     if (keycode == 27) {
-//         exit(0);
-//     }
-//     ros::spinOnce();
+        double min = 0;
+        double max = m_dispCount;
+    //     cv::minMaxIdx(dispMap, &min, &max);
+        cv::Mat adjMap;
+        // expand your range to 0..255. Similar to histEq();
+        dispMap.convertTo(adjMap,CV_8UC1, 255 / (max-min), -min); 
         
+        cv::Mat falseColorsMap;
+        applyColorMap(adjMap, falseColorsMap, cv::COLORMAP_RAINBOW);
+    }
+
 }
 
 RSGM_ROS::MyImage_t RSGM_ROS::fromCVtoMyImage(const cv::Mat& img)
@@ -270,8 +305,11 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
 {
     try
     {
-    
+#ifndef REPEAT_FRAME
         const cv::Mat leftImg = (cv_bridge::toCvShare(l_image_msg, sensor_msgs::image_encodings::RGB8))->image;
+#else
+        cv::Mat leftImg = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_02/data/0000000027.png", 1);
+#endif
         
         const int32_t & l_width = leftImg.cols;
         const int32_t & l_height = leftImg.rows;
@@ -306,9 +344,15 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
                     pointPCL.y = point.y;
                     pointPCL.z = point.z;
                     const cv::Vec3b & pointColor = leftImg.at<cv::Vec3b>(v, u);
+#ifndef REPEAT_FRAME                    
                     pointPCL.r = pointColor[0];
                     pointPCL.g = pointColor[1];
                     pointPCL.b = pointColor[2];
+#else
+                    pointPCL.r = pointColor[2];
+                    pointPCL.g = pointColor[1];
+                    pointPCL.b = pointColor[0];
+#endif                    
                     
                     point_cloud->push_back(pointPCL);
                 }

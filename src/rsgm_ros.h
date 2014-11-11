@@ -45,18 +45,12 @@
 
 #include "rSGM.h"
 
-
 #include "rSGM/src/MyImage.h"
 
 extern template class MyImage<uint8_t>;
 extern uint32 readNumber(uint8* p, uint32& index);
 
 using namespace std;
-
-// #define INIT_CLOCK(start) clock_t start = clock();
-// #define RESET_CLOCK(start) start = clock();
-// #define END_CLOCK(time, start) float time = (clock() - start) / (float)(CLOCKS_PER_SEC);
-// #define END_CLOCK_2(time, start) time = (clock() - start) / (float)(CLOCKS_PER_SEC);
 
 #define INIT_CLOCK(start) double start = omp_get_wtime();
 #define RESET_CLOCK(start) start = omp_get_wtime();
@@ -72,6 +66,31 @@ public:
     
 protected:
     enum Disparity_Method_t { METHOD_SGM = 0, METHOD_HCWS_CENSUS = 1 };
+    
+    struct stereoParams_t {
+        int P1; // +/-1 discontinuity penalty
+        int InvalidDispCost;  // init value for invalid disparities (half of max value seems ok)
+        int NoPasses; // one or two passes
+        int Paths; // 8, 0-4 gives 1D path, rest undefined
+        double Uniqueness; // uniqueness ratio
+        bool MedianFilter; // apply median filter
+        bool lrCheck; // apply lr-check
+        bool rlCheck; // apply rl-check (on right image)
+        int lrThreshold; // threshold for lr-check
+        int subPixelRefine; // sub pixel refine method
+        
+        // varP2 = - alpha * abs(I(x)-I(x-r))+gamma
+        double Alpha; // variable P2 alpha
+        int Gamma; // variable P2 gamma
+        int P2min; // varP2 cannot get lower than P2min
+        
+        bool AdaptiveMeanFilter; // Adaptive Mean filter
+        bool DespeckleFilter; // Despeckle filter
+        bool GapFilter; // Gap filter
+        
+        int MinSpeckleSegmentSize;
+        double SpeckleSimThreshold;
+    };
     
     // Constants
     static const uint8_t LT0 = 0;
@@ -114,10 +133,12 @@ protected:
     image_geometry::StereoCameraModel m_model;
     
     // Parameters
-    uint32_t m_paths, m_threads, m_strips, m_dispCount;
+    uint32_t m_threads, m_strips, m_dispCount;
     Disparity_Method_t m_disparityMethod;
     Sampling_Method_t m_samplingMethod;
     bool m_downsample;
+    
+    stereoParams_t m_params;
 
     Subscriber m_left_sub, m_right_sub;
     InfoSubscriber m_left_info_sub, m_right_info_sub;
