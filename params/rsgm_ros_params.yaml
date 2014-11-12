@@ -1,5 +1,4 @@
-#TrajectoryPlannerROS:
-
+#RSGM_ROS
 approximate_sync: true
 disp_count: 128
 #sgm_5x5, hwcs_census_9x7

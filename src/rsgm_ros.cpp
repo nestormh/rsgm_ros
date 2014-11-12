@@ -34,9 +34,6 @@ const static string SAMPLING_NAMES_STRIPED_SGM = "striped_sgm";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2 = "striped_sgm_subsample_2";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4 = "striped_sgm_subsample_4";
 
-// Just for debugging. Forces the use of the same frame at each iteration
-#define REPEAT_FRAME
-
 namespace rsgm_ros {
     
 RSGM_ROS::RSGM_ROS(const std::string& transport)
@@ -162,7 +159,10 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     m_left_info_sub.subscribe(nh, left_info_topic, 1);
     m_right_info_sub.subscribe(nh, right_info_topic, 1);
     
-    m_pointCloud = local_nh.advertise<sensor_msgs::PointCloud2> ("point_cloud", 1);
+    m_pointCloudPub = local_nh.advertise<sensor_msgs::PointCloud2> ("point_cloud", 1);
+    
+    image_transport::ImageTransport local_it(local_nh);
+    m_disparityImagePub = local_it.advertise("disparity", 1);
     
     // Synchronize input topics. Optionally do approximate synchronization.
     bool approx;
@@ -192,16 +192,8 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     rightImgPtr = cv_bridge::toCvShare(r_image_msg, sensor_msgs::image_encodings::MONO8);
     m_model.fromCameraInfo(*l_info_msg, *r_info_msg);
     
-#ifndef REPEAT_FRAME
     MyImage_t myImgLeft = fromCVtoMyImage(leftImgPtr->image);
     MyImage_t myImgRight = fromCVtoMyImage(rightImgPtr->image);
-#else
-    cv::Mat imgLeft = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_02/data/0000000027.png", 0);
-    cv::Mat imgRight = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_03/data/0000000027.png", 0);
-
-    MyImage_t myImgLeft = fromCVtoMyImage(imgLeft);
-    MyImage_t myImgRight = fromCVtoMyImage(imgRight);
-#endif
     
     // start processing
     float32* dispImgLeft = (float32*)_mm_malloc(myImgLeft.getWidth()*myImgLeft.getHeight()*sizeof(float32), 16);
@@ -235,39 +227,17 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
         }
     }
     
-    INIT_CLOCK(startPoinCloudPublish)
+    INIT_CLOCK(startPointCloudPublish)
     publish_point_cloud(l_image_msg, dispImgLeft, l_info_msg, r_info_msg);
-    END_CLOCK(totalPointCloudCompute, startPoinCloudPublish)
+    END_CLOCK(totalPointCloudPublish, startPointCloudPublish)
+    INIT_CLOCK(startDispImgPublish)
+    publishDisparityMap(l_image_msg, dispImgLeft);
+    END_CLOCK(totalDispImgPublish, startDispImgPublish)
     
     END_CLOCK(totalCompute, startCompute)
-    ROS_INFO("[%s] Publishing point cloud time: %f seconds", __FILE__, totalPointCloudCompute);
+    ROS_INFO("[%s] Publishing point cloud time: %f seconds", __FILE__, totalPointCloudPublish);
+    ROS_INFO("[%s] Publishing Disparity Image time: %f seconds", __FILE__, totalDispImgPublish);
     ROS_INFO("[%s] Total time: %f seconds", __FILE__, totalCompute);
-
-    // TODO: Publish Disparity image
-    {
-        MyImage<uint8> disp(myImgLeft.getWidth(), myImgLeft.getHeight());
-        uint8* dispOut = disp.getData();
-        for (uint32 i = 0; i < myImgLeft.getWidth()*myImgLeft.getHeight(); i++) {
-            if (dispImgLeft[i]>0) {
-                dispOut[i] = (uint8)dispImgLeft[i];
-            }
-            else {
-                dispOut[i] = 0;
-            }
-        }
-        cv::Mat dispMap = fromMyImagetoOpenCV(disp);
-    
-        double min = 0;
-        double max = m_dispCount;
-    //     cv::minMaxIdx(dispMap, &min, &max);
-        cv::Mat adjMap;
-        // expand your range to 0..255. Similar to histEq();
-        dispMap.convertTo(adjMap,CV_8UC1, 255 / (max-min), -min); 
-        
-        cv::Mat falseColorsMap;
-        applyColorMap(adjMap, falseColorsMap, cv::COLORMAP_RAINBOW);
-    }
-
 }
 
 RSGM_ROS::MyImage_t RSGM_ROS::fromCVtoMyImage(const cv::Mat& img)
@@ -305,11 +275,7 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
 {
     try
     {
-#ifndef REPEAT_FRAME
         const cv::Mat leftImg = (cv_bridge::toCvShare(l_image_msg, sensor_msgs::image_encodings::RGB8))->image;
-#else
-        cv::Mat leftImg = cv::imread("/local/imaged/Karlsruhe/2011_09_28/2011_09_28_drive_0038_sync/image_02/data/0000000027.png", 1);
-#endif
         
         const int32_t & l_width = leftImg.cols;
         const int32_t & l_height = leftImg.rows;
@@ -344,15 +310,9 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
                     pointPCL.y = point.y;
                     pointPCL.z = point.z;
                     const cv::Vec3b & pointColor = leftImg.at<cv::Vec3b>(v, u);
-#ifndef REPEAT_FRAME                    
                     pointPCL.r = pointColor[0];
                     pointPCL.g = pointColor[1];
                     pointPCL.b = pointColor[2];
-#else
-                    pointPCL.r = pointColor[2];
-                    pointPCL.g = pointColor[1];
-                    pointPCL.b = pointColor[0];
-#endif                    
                     
                     point_cloud->push_back(pointPCL);
                 }
@@ -365,12 +325,34 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
         cloudMsg.header.stamp = ros::Time::now();
         cloudMsg.header.seq = l_info_msg->header.seq;
         
-        m_pointCloud.publish(cloudMsg);
+        m_pointCloudPub.publish(cloudMsg);
     }
     catch (cv_bridge::Exception& e)
     {
         ROS_ERROR("cv_bridge exception: %s", e.what());
     }
 }
+
+void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData)
+{
+    const cv::Mat leftImg = (cv_bridge::toCvShare(imageMsg, sensor_msgs::image_encodings::RGB8))->image;
+    
+    const int32_t & width = leftImg.cols;
+    const int32_t & height = leftImg.rows;
+    
+    cv_bridge::CvImage out_msg;
+    out_msg.header = imageMsg->header;
+    out_msg.encoding = sensor_msgs::image_encodings::MONO8;
+    out_msg.image = cv::Mat(height, width, CV_8UC1);
+
+    #pragma omp num_threads(m_threads)
+    for (int32_t i=0; i< width*height; i++) {
+        out_msg.image.data[i] = (uint8_t)std::max(255.0 * dispData[i] / m_dispCount, 0.0);
+    }
+
+    // Publish
+    m_disparityImagePub.publish(out_msg.toImageMsg());
+}
+
 
 }

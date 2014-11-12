@@ -124,6 +124,8 @@ protected:
                              const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                              const sensor_msgs::CameraInfoConstPtr& r_info_msg);
     
+    void publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData);
+    
     MyImage_t fromCVtoMyImage(const cv::Mat & img);
     cv::Mat fromMyImagetoOpenCV(MyImage_t & myImg);
     
@@ -142,7 +144,8 @@ protected:
 
     Subscriber m_left_sub, m_right_sub;
     InfoSubscriber m_left_info_sub, m_right_info_sub;
-    ros::Publisher m_pointCloud;
+    ros::Publisher m_pointCloudPub;
+    image_transport::Publisher m_disparityImagePub;
     
     boost::shared_ptr<ExactSync> m_exact_sync;
     boost::shared_ptr<ApproximateSync> m_approximate_sync;
