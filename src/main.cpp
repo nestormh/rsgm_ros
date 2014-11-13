@@ -23,7 +23,7 @@ using namespace std;
 using namespace rsgm_ros;
 
 int main(int argC, char **argV) {
-    ros::init(argC, argV, "oflow_3d_generator");
+    ros::init(argC, argV, "rsgm_ros");
     
     std::string transport = argC > 1 ? argV[1] : "raw";
     RSGM_ROS rsgm(transport);

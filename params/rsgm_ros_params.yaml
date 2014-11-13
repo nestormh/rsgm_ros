@@ -3,7 +3,7 @@ approximate_sync: true
 disp_count: 128
 #sgm_5x5, hwcs_census_9x7
 disparity_method: hwcs_census_9x7
-downsample: true
+downsample: false
 paths: 8
 #standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4
 sampling_method: striped_sgm

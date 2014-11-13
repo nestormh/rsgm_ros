@@ -25,6 +25,10 @@
 
 #include "rSGM/src/MyImage.hpp"
 #include "rSGM/src/rSGMCmd.cpp"
+#include </opt/ros/indigo/include/sensor_msgs/Image.h>
+#include </opt/ros/indigo/include/cv_bridge/cv_bridge.h>
+
+#include <stereo_msgs/DisparityImage.h>
 
 const static string DISPARITY_NAMES_SGM_5x5 = "sgm_5x5";
 const static string DISPARITY_NAMES_HCWS_CENSUS_9x7 = "hwcs_census_9x7";
@@ -181,6 +185,7 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     }
 }    
 
+// TODO: Check whether there is somebody listening to perform (or not) the processing step
 void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg, 
                        const sensor_msgs::ImageConstPtr& r_image_msg,
                        const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
@@ -342,12 +347,14 @@ void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, f
     
     cv_bridge::CvImage out_msg;
     out_msg.header = imageMsg->header;
-    out_msg.encoding = sensor_msgs::image_encodings::MONO8;
-    out_msg.image = cv::Mat(height, width, CV_8UC1);
+    out_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+    out_msg.image = cv::Mat(height, width, CV_32FC1);
 
     #pragma omp num_threads(m_threads)
-    for (int32_t i=0; i< width*height; i++) {
-        out_msg.image.data[i] = (uint8_t)std::max(255.0 * dispData[i] / m_dispCount, 0.0);
+    for (uint32_t v = 0, i = 0; v < height; v++)  {
+        for (uint32_t u = 0; u < width; u++, i++)  {
+            out_msg.image.at<float32>(v, u) = std::max(m_dispCount - dispData[i], 0.0f);
+        }
     }
 
     // Publish
