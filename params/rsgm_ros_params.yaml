@@ -1,12 +1,14 @@
-#RSGM_ROS
+# RSGM_ROS
 approximate_sync: true
-disp_count: 128
-#sgm_5x5, hwcs_census_9x7
+disp_count: 64
+# sgm_5x5, hwcs_census_9x7
 disparity_method: hwcs_census_9x7
 downsample: false
 paths: 8
-#standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4
+# standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4
 sampling_method: striped_sgm
+# depth_encoding_16u, depth_encoding_32f
+depth_encoding: depth_encoding_32f
 strips: 4
 threads: 4
 lr_check: true

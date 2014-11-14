@@ -22,6 +22,7 @@
 #include <pcl-1.7/pcl/point_cloud.h>
 #include <pcl-1.7/pcl/impl/point_types.hpp>
 #include <tiff.h>
+#include <boost/graph/graph_concepts.hpp>
 
 #include "rSGM/src/MyImage.hpp"
 #include "rSGM/src/rSGMCmd.cpp"
@@ -38,6 +39,9 @@ const static string SAMPLING_NAMES_STRIPED_SGM = "striped_sgm";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2 = "striped_sgm_subsample_2";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4 = "striped_sgm_subsample_4";
 
+const static string DEPTH_ENCODING_16U = "depth_encoding_16u";
+const static string DEPTH_ENCODING_32F = "depth_encoding_32f";
+
 namespace rsgm_ros {
     
 RSGM_ROS::RSGM_ROS(const std::string& transport)
@@ -46,6 +50,7 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     int queue_size;
     string dispMethod, samplingMethod;
     int threads, strips, dispCount;
+    string depthEncoding;
     
     ros::NodeHandle local_nh("~");
     local_nh.param("queue_size", queue_size, 10);
@@ -80,6 +85,7 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     
     local_nh.param("disparity_method", dispMethod, DISPARITY_NAMES_HCWS_CENSUS_9x7);
     local_nh.param("sampling_method", samplingMethod, SAMPLING_NAMES_STRIPED_SGM);
+    local_nh.param("depth_encoding", depthEncoding, DEPTH_ENCODING_16U);
     
     if (dispMethod == DISPARITY_NAMES_SGM_5x5) {
         m_disparityMethod = METHOD_SGM;
@@ -104,6 +110,17 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
         ROS_ERROR("sampling_method %s not valid!. Try: [%s, %s, %s. %s]", 
                   samplingMethod.c_str(), SAMPLING_NAMES_STANDARD_SGM.c_str(), SAMPLING_NAMES_STRIPED_SGM.c_str(),
                   SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2.c_str(), SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4.c_str());
+        ROS_INFO("Aborting...");
+        exit(0);
+    }
+    
+    if (depthEncoding == DEPTH_ENCODING_16U) {
+        m_depthEncoding = CV_16U;
+    } else if (depthEncoding == DEPTH_ENCODING_32F) {
+        m_depthEncoding = CV_32F;
+    } else {
+        ROS_ERROR("depth_encoding %s not valid!. Try: [%s, %s]", 
+                  depthEncoding.c_str(), DEPTH_ENCODING_16U.c_str(), DEPTH_ENCODING_32F.c_str());
         ROS_INFO("Aborting...");
         exit(0);
     }
@@ -167,6 +184,7 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     
     image_transport::ImageTransport local_it(local_nh);
     m_disparityImagePub = local_it.advertise("disparity", 1);
+    m_depthImagePub = local_it.advertise("depth", 1);
     
     // Synchronize input topics. Optionally do approximate synchronization.
     bool approx;
@@ -183,9 +201,8 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
                                             m_left_sub, m_right_sub, m_left_info_sub, m_right_info_sub) );
         m_exact_sync->registerCallback(boost::bind(&RSGM_ROS::process, this, _1, _2, _3, _4));
     }
-}    
+}
 
-// TODO: Check whether there is somebody listening to perform (or not) the processing step
 void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg, 
                        const sensor_msgs::ImageConstPtr& r_image_msg,
                        const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
@@ -278,6 +295,9 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
                                    const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                                    const sensor_msgs::CameraInfoConstPtr& r_info_msg)
 {
+    if (m_pointCloudPub.getNumSubscribers() == 0)
+        return;
+    
     try
     {
         const cv::Mat leftImg = (cv_bridge::toCvShare(l_image_msg, sensor_msgs::image_encodings::RGB8))->image;
@@ -338,28 +358,65 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
     }
 }
 
+// TODO: Ponerlo como template
 void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData)
 {
+    bool publishDisparity = (m_disparityImagePub.getNumSubscribers() != 0);
+    bool publishDepth = (m_depthImagePub.getNumSubscribers() != 0);
+    
+    if ((! publishDisparity) && (! publishDepth))
+        return;
+    
     const cv::Mat leftImg = (cv_bridge::toCvShare(imageMsg, sensor_msgs::image_encodings::RGB8))->image;
     
     const int32_t & width = leftImg.cols;
     const int32_t & height = leftImg.rows;
     
-    cv_bridge::CvImage out_msg;
-    out_msg.header = imageMsg->header;
-    out_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
-    out_msg.image = cv::Mat(height, width, CV_32FC1);
+    cv_bridge::CvImage disparityMsg, depthMsg;
+    if (publishDisparity) {
+        disparityMsg.header = imageMsg->header;
+        if (m_depthEncoding == CV_16U) {
+            disparityMsg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+            disparityMsg.image = cv::Mat(height, width, CV_16UC1);
+        } else if (m_depthEncoding == CV_32F) {
+            disparityMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            disparityMsg.image = cv::Mat(height, width, CV_32FC1);
+        }
+    }
+    if (publishDepth) {
+        depthMsg.header = imageMsg->header;
+        if (m_depthEncoding == CV_16U) {
+            depthMsg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+            depthMsg.image = cv::Mat(height, width, CV_16UC1);
+        } else if (m_depthEncoding == CV_32F) {
+            depthMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            depthMsg.image = cv::Mat(height, width, CV_32FC1);
+        }
+    }
 
     #pragma omp num_threads(m_threads)
     for (uint32_t v = 0, i = 0; v < height; v++)  {
         for (uint32_t u = 0; u < width; u++, i++)  {
-            out_msg.image.at<float32>(v, u) = std::max(m_dispCount - dispData[i], 0.0f);
+            if (dispData[i] > 0) {
+                if (m_depthEncoding == CV_16U) {
+                    if (publishDisparity) disparityMsg.image.at<uint16>(v, u) = std::max(dispData[i], 0.0f);
+//                     if (publishDepth) depthMsg.image.at<uint16>(v, u) = (uint16)std::max(m_dispCount - dispData[i], 0.0f);
+//                     out_msg.image.data[i] = (uint8_t)std::max(255.0 * dispData[i] / m_dispCount, 0.0);
+                    if (publishDepth) 
+                        depthMsg.image.at<uint16>(v, u) = 0xFFFF - 0xFFFF * (std::max(dispData[i] / m_dispCount, 0.0f));
+                } else if (m_depthEncoding == CV_32F) {
+                    if (publishDisparity) disparityMsg.image.at<float32>(v, u) = std::max(dispData[i], 0.0f);
+                    if (publishDepth) depthMsg.image.at<float32>(v, u) = std::max(m_dispCount - dispData[i], 0.0f);
+                }
+            }
         }
     }
-
+    
     // Publish
-    m_disparityImagePub.publish(out_msg.toImageMsg());
+    if (publishDisparity) m_disparityImagePub.publish(disparityMsg.toImageMsg());
+    if (publishDepth) m_depthImagePub.publish(depthMsg.toImageMsg());
 }
 
 
 }
+

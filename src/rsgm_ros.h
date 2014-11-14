@@ -112,6 +112,7 @@ protected:
     typedef MyImage<MyImage_Data_t> MyImage_t;
     
     // Callbacks
+    void connectCallback();
     void process(const sensor_msgs::ImageConstPtr& l_image_msg, 
                  const sensor_msgs::ImageConstPtr& r_image_msg,
                  const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
@@ -123,7 +124,6 @@ protected:
                              float32* l_disp_data,
                              const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                              const sensor_msgs::CameraInfoConstPtr& r_info_msg);
-    
     void publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData);
     
     MyImage_t fromCVtoMyImage(const cv::Mat & img);
@@ -138,6 +138,7 @@ protected:
     uint32_t m_threads, m_strips, m_dispCount;
     Disparity_Method_t m_disparityMethod;
     Sampling_Method_t m_samplingMethod;
+    int m_depthEncoding;
     bool m_downsample;
     
     stereoParams_t m_params;
@@ -146,6 +147,7 @@ protected:
     InfoSubscriber m_left_info_sub, m_right_info_sub;
     ros::Publisher m_pointCloudPub;
     image_transport::Publisher m_disparityImagePub;
+    image_transport::Publisher m_depthImagePub;
     
     boost::shared_ptr<ExactSync> m_exact_sync;
     boost::shared_ptr<ApproximateSync> m_approximate_sync;
