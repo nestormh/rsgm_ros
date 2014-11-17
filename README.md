@@ -7,5 +7,5 @@ Usage
 -----
 1. First download the code from http://userpage.fu-berlin.de/spangenb/download.html
 2. Unzip the file in src/rSGM.
-3. Apply the patch.
+3. Apply the patch using the script apply_patch.
 4. Compile as usual in ROS.
