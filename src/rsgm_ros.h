@@ -83,13 +83,6 @@ protected:
         double Alpha; // variable P2 alpha
         int Gamma; // variable P2 gamma
         int P2min; // varP2 cannot get lower than P2min
-        
-        bool AdaptiveMeanFilter; // Adaptive Mean filter
-        bool DespeckleFilter; // Despeckle filter
-        bool GapFilter; // Gap filter
-        
-        int MinSpeckleSegmentSize;
-        double SpeckleSimThreshold;
     };
     
     // Constants
@@ -124,7 +117,9 @@ protected:
                              float32* l_disp_data,
                              const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                              const sensor_msgs::CameraInfoConstPtr& r_info_msg);
-    void publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData);
+    void publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData,
+                             const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
+                             const sensor_msgs::CameraInfoConstPtr& r_info_msg);
     
     MyImage_t fromCVtoMyImage(const cv::Mat & img);
     cv::Mat fromMyImagetoOpenCV(MyImage_t & myImg);
@@ -138,11 +133,11 @@ protected:
     uint32_t m_threads, m_strips, m_dispCount;
     Disparity_Method_t m_disparityMethod;
     Sampling_Method_t m_samplingMethod;
-    int m_depthEncoding;
+//     int m_depthEncoding;
     bool m_downsample;
     
     stereoParams_t m_params;
-
+    
     Subscriber m_left_sub, m_right_sub;
     InfoSubscriber m_left_info_sub, m_right_info_sub;
     ros::Publisher m_pointCloudPub;

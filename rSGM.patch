@@ -1,0 +1,515 @@
+diff -ruN src/rSGM/src_orig/MyImage.h src/rSGM/src/MyImage.h
+--- src/rSGM/src_orig/MyImage.h	2014-07-13 13:49:50.000000000 +0100
++++ src/rSGM/src/MyImage.h	2014-11-17 11:59:55.257489921 +0000
+@@ -64,4 +64,3 @@
+ template <typename T>
+ void writePGM(MyImage<T>& img, const char* filename, bool verbose);
+ 
+-#include "MyImage.hpp"
+diff -ruN src/rSGM/src_orig/rSGMCmd.cpp src/rSGM/src/rSGMCmd.cpp
+--- src/rSGM/src_orig/rSGMCmd.cpp	2014-07-13 13:49:50.000000000 +0100
++++ src/rSGM/src/rSGMCmd.cpp	2014-11-12 11:46:58.449104426 +0000
+@@ -84,7 +84,7 @@
+ {
+     const int maxDisp = dispCount - 1;
+ 
+-    std::cout << std::endl << "- " << method << ", " << paths << ", " << numThreads << ", " << numStrips << ", " << dispCount << std::endl;
++    //Hidden comment << std::endl << "- " << method << ", " << paths << ", " << numThreads << ", " << numStrips << ", " << dispCount << std::endl;
+ 
+     // get memory and init sgm params
+     uint32* leftImgCensus = (uint32*)_mm_malloc(width*height*sizeof(uint32), 16);
+@@ -176,7 +176,7 @@
+ {
+     const int maxDisp = dispCount - 1;
+ 
+-    std::cout << std::endl << "- " << method << ", " << paths << ", " << numThreads << ", " << numStrips << ", " << dispCount << std::endl;
++    //Hidden comment << std::endl << "- " << method << ", " << paths << ", " << numThreads << ", " << numStrips << ", " << dispCount << std::endl;
+ 
+     // get memory and init sgm params
+     uint64* leftImgCensus = (uint64*)_mm_malloc(width*height*sizeof(uint64), 16);
+@@ -193,41 +193,58 @@
+     params.Gamma = 100;
+     params.Alpha = 0.f;
+ 
++    processCensus9x7SGM(leftImg, rightImg, output, dispImgRight, width, height, 
++                        method, paths, numThreads, numStrips, dispCount, params);
++}
++
++template<typename T>
++void processCensus9x7SGM(T* leftImg, T* rightImg, float32* output, float32* dispImgRight,
++                         int width, int height, int method, uint16 paths, const int numThreads, 
++                         const int numStrips, const int dispCount, StereoSGMParams_t params)
++{
++    const int maxDisp = dispCount - 1;
++    
++    //Hidden comment << std::endl << "- " << method << ", " << paths << ", " << numThreads << ", " << numStrips << ", " << dispCount << std::endl;
++    
++    // get memory and init sgm params
++    uint64* leftImgCensus = (uint64*)_mm_malloc(width*height*sizeof(uint64), 16);
++    uint64* rightImgCensus = (uint64*)_mm_malloc(width*height*sizeof(uint64), 16);
++    
+     if (method == 1) {
+         uint16* dsi = (uint16*)_mm_malloc(width*height*(maxDisp + 1)*sizeof(uint16), 32);
+-
++        
+         StripedStereoSGM<T> stripedStereoSGM(width, height, maxDisp, numStrips, 16, params);
+-
+-#pragma omp parallel num_threads(2)
++        
++        #pragma omp parallel num_threads(2)
+         {
+-#pragma omp sections nowait
++            #pragma omp sections nowait
+             {
+-#pragma omp section
++                #pragma omp section
+                 {
+                     census9x7_t<T>(leftImg, leftImgCensus, width, height);
+                 }
+-#pragma omp section
++                #pragma omp section
+                 {
+                     census9x7_t<T>(rightImg, rightImgCensus, width, height);
+                 }
+             }
+         }
+-
++        
+         costMeasureCensus9x7_xyd_t(leftImgCensus, rightImgCensus, height, width, dispCount, dsi, numThreads);
+-
++        
+         stripedStereoSGM.process(leftImg, output, dispImgRight, dsi, numThreads);
+-
++        
+         _mm_free(dsi);
+     }
+ }
+ 
+-int main(int argc, char **argv)
++int console(int argc, char **argv)
+ {
+     const int verbose = 1;
+ 
+     // load parameter
+     if (argc!=6) {
+-        std::cout << "expected imL,imR,disp,bitdepth,demo as params"<< std::endl;
++        //Hidden comment << "expected imL,imR,disp,bitdepth,demo as params"<< std::endl;
+         return -1;
+     }
+     char *im1name = argv[1];
+@@ -244,11 +261,11 @@
+         readPGM(myImg1, im1name);
+         readPGM(myImg2, im2name);
+ 
+-        std::cout << "image 1 " << myImg1.getWidth() << "x" << myImg1.getHeight() << std::endl;
+-        std::cout << "image 2 " << myImg2.getWidth() << "x" << myImg2.getHeight() << std::endl;
++        //Hidden comment << "image 1 " << myImg1.getWidth() << "x" << myImg1.getHeight() << std::endl;
++        //Hidden comment << "image 2 " << myImg2.getWidth() << "x" << myImg2.getHeight() << std::endl;
+ 
+         if (myImg1.getWidth() % 16 != 0) {
+-            std::cout << "Image width must be a multiple of 16" << std::endl;
++            //Hidden comment << "Image width must be a multiple of 16" << std::endl;
+             return 0;
+         }
+             
+@@ -317,11 +334,11 @@
+         readPGM(myImg1, im1name);
+         readPGM(myImg2, im2name);
+ 
+-        std::cout << "image 1 " << myImg1.getWidth() << "x" << myImg1.getHeight() << std::endl;
+-        std::cout << "image 2 " << myImg2.getWidth() << "x" << myImg2.getHeight() << std::endl;
++        //Hidden comment << "image 1 " << myImg1.getWidth() << "x" << myImg1.getHeight() << std::endl;
++        //Hidden comment << "image 2 " << myImg2.getWidth() << "x" << myImg2.getHeight() << std::endl;
+ 
+         if (myImg1.getWidth() % 16 != 0) {
+-            std::cout << "Image width must be a multiple of 16" << std::endl;
++            //Hidden comment << "Image width must be a multiple of 16" << std::endl;
+             return 0;
+         }
+ 
+diff -ruN src/rSGM/src_orig/StereoBMHelper.cpp src/rSGM/src/StereoBMHelper.cpp
+--- src/rSGM/src_orig/StereoBMHelper.cpp	2014-07-13 15:09:12.000000000 +0100
++++ src/rSGM/src/StereoBMHelper.cpp	2014-11-12 11:46:58.449104426 +0000
+@@ -86,7 +86,7 @@
+         }
+     }
+ 
+-    if (numThreads != 4) 
++    if ((numThreads != 4) && (numThreads != 8)) 
+     {
+ #pragma omp parallel num_threads(2)
+         {
+@@ -125,6 +125,45 @@
+                 }
+             }
+         }
++    } else if (numThreads == 8) {
++        #pragma omp parallel num_threads(8)
++        {
++            #pragma omp sections nowait
++            {
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 2, height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, height/8, 2 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 2 * height/8, 3 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 3 * height/8, 4 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 4 * height/8, 5 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 5 * height/8, 6 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dsi, 6 * height/8, 7 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus5x5Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dsi, 7 * height/8, height-2);
++                }
++            }
++        }
+     }
+     /* last 2 lines are empty*/
+     for (int i=height-2;i<height;i++) {
+@@ -369,7 +408,7 @@
+ 
+     if (dispSubSample == 2) {
+ 
+-        if (numThreads != 4) 
++        if ((numThreads != 4) && (numThreads != 8))
+         {
+ #pragma omp parallel num_threads(2)
+             {
+@@ -386,31 +425,86 @@
+                 }
+             }
+         } else if (numThreads == 4) {
+-#pragma omp parallel num_threads(4)
++            #pragma omp parallel num_threads(4)
+             {
+-#pragma omp sections nowait
++                #pragma omp sections nowait
+                 {
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, 2, height/4);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height/4, height/2);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height/2, height-height/4);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height-height/4, height-2);
+                     }
+                 }
+             }
++        } else if (numThreads == 8) {
++            #pragma omp parallel num_threads(8)
++            {
++                #pragma omp sections nowait
++                {
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             2, height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             height/8, 2 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             2 * height/8, 3 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             3 * height/8, 4 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             4 * height/8, 5 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             5 * height/8, 6 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             6 * height/8, 7 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample2Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             7 * height/8, height-2);
++                    }
++                }
++            }
+         }
+     } else if (dispSubSample == 4) {
+-        if (numThreads != 4) 
++        if ((numThreads != 4) && (numThreads != 8))
+         {
+ #pragma omp parallel num_threads(2)
+             {
+@@ -427,28 +521,83 @@
+                 }
+             }
+         } else if (numThreads == 4) {
+-#pragma omp parallel num_threads(4)
++            #pragma omp parallel num_threads(4)
+             {
+-#pragma omp sections nowait
++                #pragma omp sections nowait
+                 {
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, 2, height/4);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height/4, height/2);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height/2, height-height/4);
+                     }
+-#pragma omp section
++                    #pragma omp section
+                     {
+                         costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, dispCountCompressed, dispSubSample, dispCountLow, dsi, height-height/4, height-2);
+                     }
+                 }
+             }
++        } else if (numThreads == 8) {
++            #pragma omp parallel num_threads(8)
++            {
++                #pragma omp sections nowait
++                {
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2, width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             2, height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             height/8, 2 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             2 * height/8, 3 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             3 * height/8, 4 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             4 * height/8, 5 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             5 * height/8, 6 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                             6 * height/8, 7 * height/8);
++                    }
++                    #pragma omp section
++                    {
++                        costMeasureCensusCompressed5x5Subsample4Line_xyd_SSE(intermediate1, intermediate2,width, dispCount, invalidDispValue, 
++                                                                             dispCountCompressed, dispSubSample, dispCountLow, dsi, 
++                                                                            7 * height/8, height-2);
++                    }
++                }
++            }
+         }
+ 
+     }
+@@ -501,7 +650,7 @@
+         }
+     }
+ 
+-    if (numThreads != 4) 
++    if ((numThreads != 4) && (numThreads != 8))
+     {
+ #pragma omp parallel /*shared(dsi,height, width, dispCount, baseImg, matchImg),*/ num_threads(2)
+         {
+@@ -518,28 +667,67 @@
+             }
+         }
+     } else if (numThreads == 4) {
+-#pragma omp parallel /*shared(dsi,height, width, dispCount, baseImg, matchImg),*/ num_threads(4)
++        #pragma omp parallel /*shared(dsi,height, width, dispCount, baseImg, matchImg),*/ num_threads(4)
+         {
+-#pragma omp sections nowait
++            #pragma omp sections nowait
+             {
+-#pragma omp section
++                #pragma omp section
+                 {
+                     costMeasureCensus9x7Line_xyd(intermediate1, intermediate2, width, dispCount, dsi, 2, height/4);
+                 }
+-#pragma omp section
++                #pragma omp section
+                 {
+                     costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, height/4, height/2);
+                 }
+-#pragma omp section
++                #pragma omp section
+                 {
+                     costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, height/2, height-height/4);
+                 }
+-#pragma omp section
++                #pragma omp section
+                 {
+                     costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, height-height/4, height-2);
+                 }
+             }
+         }
++    } else if (numThreads == 8) {
++        #pragma omp parallel /*shared(dsi,height, width, dispCount, baseImg, matchImg),*/ num_threads(8)
++        {
++            #pragma omp sections nowait
++            {
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2, width, dispCount, dsi, 2, height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, height/8, 2 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 2 * height/8, 3 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 3 * height/8, 4 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 4 * height/8, 5 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 5 * height/8, 6 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 6 * height/8, 7 * height/8);
++                }
++                #pragma omp section
++                {
++                    costMeasureCensus9x7Line_xyd(intermediate1, intermediate2,width, dispCount, dsi, 7 * height/8, height-2);
++                }
++            }
++        }
+     }
+     /* last 3 lines are empty*/
+     for (int i=height-3;i<height;i++) {
+@@ -887,7 +1075,7 @@
+     const uint32 factorUniq = (uint32)(1024*uniqueness); 
+ 
+     const uint32 disp = maxDisp+1;
+-    _ASSERT(disp <= 256);
++    assert(disp <= 256);
+     ALIGN32 uint16 store[256+32];
+     store[15] = UINT16_MAX-1;
+     store[disp+16] = UINT16_MAX-1;
+diff -ruN src/rSGM/src_orig/StereoCommon.h src/rSGM/src/StereoCommon.h
+--- src/rSGM/src_orig/StereoCommon.h	2014-07-13 15:24:48.000000000 +0100
++++ src/rSGM/src/StereoCommon.h	2014-11-12 11:46:58.449104426 +0000
+@@ -34,7 +34,7 @@
+ #else
+     #define FORCEINLINE inline __attribute__((always_inline))
+     #define ALIGN16 __attribute__ ((aligned(16)))
+-    #define UINT16_MAX    ((uint16)0xffffU)
++    #define UINT16_MAX_    ((uint16)0xffffU)
+     #define ALIGN32 __attribute__ ((aligned(32)))
+     #define ASSERT(x) assert(x)
+ #endif
+diff -ruN src/rSGM/src_orig/StereoSGM.h src/rSGM/src/StereoSGM.h
+--- src/rSGM/src_orig/StereoSGM.h	2014-07-13 14:51:34.000000000 +0100
++++ src/rSGM/src/StereoSGM.h	2014-11-17 12:12:22.193509924 +0000
+@@ -47,6 +47,27 @@
+     {
+ 
+     }
++    
++    StereoSGMParams_t(uint16 P1In, uint16 InvalidDispCostIn, uint16 NoPassesIn, uint16 PathsIn, 
++                      float32 UniquenessIn, bool MedianFilterIn, bool lrCheckIn, bool rlCheckIn, 
++                      int lrThresholdIn, int subPixelRefineIn, float32 AlphaIn, uint16 GammaIn, 
++                      uint16 P2minIn)
++    : P1(P1In)
++    ,InvalidDispCost(InvalidDispCostIn) 
++    ,NoPasses(NoPassesIn)
++    ,Paths(PathsIn)
++    ,Uniqueness(UniquenessIn)
++    ,MedianFilter(MedianFilterIn)
++    ,lrCheck(lrCheckIn)
++    ,rlCheck(rlCheckIn)
++    ,lrThreshold(lrThresholdIn)
++    ,subPixelRefine(subPixelRefineIn)
++    ,Alpha(AlphaIn)
++    ,Gamma(GammaIn)
++    ,P2min(P2minIn)
++    {
++        
++    }
+ } ;
+ 
+ // template param is image pixel type (uint8 or uint16)

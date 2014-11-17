@@ -28,6 +28,7 @@
 #include "rSGM/src/rSGMCmd.cpp"
 #include </opt/ros/indigo/include/sensor_msgs/Image.h>
 #include </opt/ros/indigo/include/cv_bridge/cv_bridge.h>
+#include </opt/ros/indigo/include/image_geometry/stereo_camera_model.h>
 
 #include <stereo_msgs/DisparityImage.h>
 
@@ -38,9 +39,6 @@ const static string SAMPLING_NAMES_STANDARD_SGM = "standard_sgm";
 const static string SAMPLING_NAMES_STRIPED_SGM = "striped_sgm";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_2 = "striped_sgm_subsample_2";
 const static string SAMPLING_NAMES_STRIPED_SGM_SUBSAMPLE_4 = "striped_sgm_subsample_4";
-
-const static string DEPTH_ENCODING_16U = "depth_encoding_16u";
-const static string DEPTH_ENCODING_32F = "depth_encoding_32f";
 
 namespace rsgm_ros {
     
@@ -76,16 +74,9 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
     local_nh.param("p1", m_params.P1, 10);
     local_nh.param("p2", m_params.P2min, 50);
     local_nh.param("uniqueness", m_params.Uniqueness, 0.90);
-    local_nh.param("despeckle_filter", m_params.DespeckleFilter, true);
-    local_nh.param("min_speckle_segment_size", m_params.MinSpeckleSegmentSize, 100);
-    local_nh.param("speckle_sim_threshold", m_params.SpeckleSimThreshold, 1.0);
-    local_nh.param("adaptive_mean_filter", m_params.AdaptiveMeanFilter, true);
-    local_nh.param("gap_filter", m_params.GapFilter, true);
 
-    
     local_nh.param("disparity_method", dispMethod, DISPARITY_NAMES_HCWS_CENSUS_9x7);
     local_nh.param("sampling_method", samplingMethod, SAMPLING_NAMES_STRIPED_SGM);
-    local_nh.param("depth_encoding", depthEncoding, DEPTH_ENCODING_16U);
     
     if (dispMethod == DISPARITY_NAMES_SGM_5x5) {
         m_disparityMethod = METHOD_SGM;
@@ -114,17 +105,6 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
         exit(0);
     }
     
-    if (depthEncoding == DEPTH_ENCODING_16U) {
-        m_depthEncoding = CV_16U;
-    } else if (depthEncoding == DEPTH_ENCODING_32F) {
-        m_depthEncoding = CV_32F;
-    } else {
-        ROS_ERROR("depth_encoding %s not valid!. Try: [%s, %s]", 
-                  depthEncoding.c_str(), DEPTH_ENCODING_16U.c_str(), DEPTH_ENCODING_32F.c_str());
-        ROS_INFO("Aborting...");
-        exit(0);
-    }
-    
     if (m_threads != 2 && m_threads != 4 && m_threads != 8) {
         ROS_ERROR("The number of threads is %d", m_threads);
         ROS_ERROR("It should be 2, 4 or 8!!!");
@@ -140,32 +120,6 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
         ROS_INFO("Aborting...");
         exit(0);
     }
-    
-    ROS_INFO("PARAMS INFO");
-    ROS_INFO("===========");
-    ROS_INFO("threads: %d", m_threads);
-    ROS_INFO("strips: %d", m_strips);
-    ROS_INFO("disp_count: %d", m_dispCount);
-    ROS_INFO("disparity_method: %s", dispMethod.c_str());
-    ROS_INFO("sampling_method: %s", samplingMethod.c_str());
-    ROS_INFO("lr_check %d", m_params.lrCheck);
-    ROS_INFO("median_filter %d", m_params.MedianFilter);
-    ROS_INFO("paths %d", m_params.Paths);
-    ROS_INFO("sub_pixel_refine %d", m_params.subPixelRefine);
-    ROS_INFO("number_of_passes %d", m_params.NoPasses);
-    ROS_INFO("rl_check %d", m_params.rlCheck);
-    ROS_INFO("invalid_disparity_cost %d", m_params.InvalidDispCost);
-    ROS_INFO("gamma %d", m_params.Gamma);
-    ROS_INFO("alpha %f", m_params.Alpha);
-    ROS_INFO("p1 %d", m_params.P1);
-    ROS_INFO("p2 %d", m_params.P2min);
-    ROS_INFO("uniqueness %f", m_params.Uniqueness);
-    ROS_INFO("despeckle_filter %d", m_params.DespeckleFilter);
-    ROS_INFO("min_speckle_segment_size %d", m_params.MinSpeckleSegmentSize);
-    ROS_INFO("speckle_sim_threshold %f", m_params.SpeckleSimThreshold);
-    ROS_INFO("adaptive_mean_filter %d", m_params.AdaptiveMeanFilter);
-    ROS_INFO("gap_filter %d", m_params.GapFilter);
-
     
     // Topics
     std::string stereo_ns = nh.resolveName("stereo");
@@ -201,6 +155,28 @@ RSGM_ROS::RSGM_ROS(const std::string& transport)
                                             m_left_sub, m_right_sub, m_left_info_sub, m_right_info_sub) );
         m_exact_sync->registerCallback(boost::bind(&RSGM_ROS::process, this, _1, _2, _3, _4));
     }
+    
+    ROS_INFO("PARAMS INFO");
+    ROS_INFO("===========");
+    ROS_INFO("threads: %d", m_threads);
+    ROS_INFO("strips: %d", m_strips);
+    ROS_INFO("disp_count: %d", m_dispCount);
+    ROS_INFO("disparity_method: %s", dispMethod.c_str());
+    ROS_INFO("sampling_method: %s", samplingMethod.c_str());
+    ROS_INFO("lr_check %d", m_params.lrCheck);
+    ROS_INFO("median_filter %d", m_params.MedianFilter);
+    ROS_INFO("paths %d", m_params.Paths);
+    ROS_INFO("sub_pixel_refine %d", m_params.subPixelRefine);
+    ROS_INFO("number_of_passes %d", m_params.NoPasses);
+    ROS_INFO("rl_check %d", m_params.rlCheck);
+    ROS_INFO("invalid_disparity_cost %d", m_params.InvalidDispCost);
+    ROS_INFO("gamma %d", m_params.Gamma);
+    ROS_INFO("alpha %f", m_params.Alpha);
+    ROS_INFO("p1 %d", m_params.P1);
+    ROS_INFO("p2 %d", m_params.P2min);
+    ROS_INFO("uniqueness %f", m_params.Uniqueness);
+    ROS_INFO("approximate_sync %d", approx);
+    ROS_INFO("queue_size %d", queue_size);
 }
 
 void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg, 
@@ -236,8 +212,7 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
             StereoSGMParams_t params(m_params.P1, m_params.InvalidDispCost, m_params.NoPasses, m_params.Paths,
                                      m_params.Uniqueness, m_params.MedianFilter, m_params.lrCheck, m_params.rlCheck,
                                      m_params.lrThreshold, m_params.subPixelRefine, m_params.Alpha, m_params.Gamma,
-                                     m_params.P2min, m_params.AdaptiveMeanFilter, m_params.DespeckleFilter, m_params.GapFilter,
-                                     m_params.MinSpeckleSegmentSize, m_params.SpeckleSimThreshold);
+                                     m_params.P2min);
             
             processCensus9x7SGM(leftImg, rightImg, dispImgLeft, dispImgRight, 
                                 myImgLeft.getWidth(), myImgLeft.getHeight(),
@@ -253,7 +228,7 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
     publish_point_cloud(l_image_msg, dispImgLeft, l_info_msg, r_info_msg);
     END_CLOCK(totalPointCloudPublish, startPointCloudPublish)
     INIT_CLOCK(startDispImgPublish)
-    publishDisparityMap(l_image_msg, dispImgLeft);
+    publishDisparityMap(l_image_msg, dispImgLeft, l_info_msg, r_info_msg);
     END_CLOCK(totalDispImgPublish, startDispImgPublish)
     
     END_CLOCK(totalCompute, startCompute)
@@ -358,14 +333,18 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
     }
 }
 
-// TODO: Ponerlo como template
-void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData)
+void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, float32 * dispData,
+                                   const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
+                                   const sensor_msgs::CameraInfoConstPtr& r_info_msg)
 {
     bool publishDisparity = (m_disparityImagePub.getNumSubscribers() != 0);
     bool publishDepth = (m_depthImagePub.getNumSubscribers() != 0);
     
     if ((! publishDisparity) && (! publishDepth))
         return;
+    
+    image_geometry::StereoCameraModel model;
+    model.fromCameraInfo(*l_info_msg, *r_info_msg);
     
     const cv::Mat leftImg = (cv_bridge::toCvShare(imageMsg, sensor_msgs::image_encodings::RGB8))->image;
     
@@ -375,39 +354,21 @@ void RSGM_ROS::publishDisparityMap(const sensor_msgs::ImageConstPtr& imageMsg, f
     cv_bridge::CvImage disparityMsg, depthMsg;
     if (publishDisparity) {
         disparityMsg.header = imageMsg->header;
-        if (m_depthEncoding == CV_16U) {
-            disparityMsg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-            disparityMsg.image = cv::Mat(height, width, CV_16UC1);
-        } else if (m_depthEncoding == CV_32F) {
-            disparityMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
-            disparityMsg.image = cv::Mat(height, width, CV_32FC1);
-        }
+        disparityMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+        disparityMsg.image = cv::Mat(height, width, CV_32FC1);
     }
     if (publishDepth) {
         depthMsg.header = imageMsg->header;
-        if (m_depthEncoding == CV_16U) {
-            depthMsg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-            depthMsg.image = cv::Mat(height, width, CV_16UC1);
-        } else if (m_depthEncoding == CV_32F) {
-            depthMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
-            depthMsg.image = cv::Mat(height, width, CV_32FC1);
-        }
+        depthMsg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+        depthMsg.image = cv::Mat(height, width, CV_32FC1);
     }
 
     #pragma omp num_threads(m_threads)
     for (uint32_t v = 0, i = 0; v < height; v++)  {
         for (uint32_t u = 0; u < width; u++, i++)  {
             if (dispData[i] > 0) {
-                if (m_depthEncoding == CV_16U) {
-                    if (publishDisparity) disparityMsg.image.at<uint16>(v, u) = std::max(dispData[i], 0.0f);
-//                     if (publishDepth) depthMsg.image.at<uint16>(v, u) = (uint16)std::max(m_dispCount - dispData[i], 0.0f);
-//                     out_msg.image.data[i] = (uint8_t)std::max(255.0 * dispData[i] / m_dispCount, 0.0);
-                    if (publishDepth) 
-                        depthMsg.image.at<uint16>(v, u) = 0xFFFF - 0xFFFF * (std::max(dispData[i] / m_dispCount, 0.0f));
-                } else if (m_depthEncoding == CV_32F) {
-                    if (publishDisparity) disparityMsg.image.at<float32>(v, u) = std::max(dispData[i], 0.0f);
-                    if (publishDepth) depthMsg.image.at<float32>(v, u) = std::max(m_dispCount - dispData[i], 0.0f);
-                }
+                if (publishDisparity) disparityMsg.image.at<float32>(v, u) = std::max(dispData[i], 0.0f);
+                if (publishDepth) depthMsg.image.at<float32>(v, u) = std::max(model.getZ(dispData[i]), 0.0);
             }
         }
     }
