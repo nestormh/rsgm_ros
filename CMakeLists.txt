@@ -26,6 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 # CFLAGS=-I. -msse4.1 -msse4.2 -O3 -ffast-math  -march=core2 $(DEST_ARCH) $(OPENMP) -Wno-write-strings
 # LDFLAGS= $(DEST_ARCH) $(OPENMP)
 
+set(ROS_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1 -msse4.2 -O3 -ffast-math  -march=core2 -fopenmp -Wno-write-strings")
 
 ## Uncomment this if the package has a setup.py. This macro ensures

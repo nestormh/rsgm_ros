@@ -1,6 +1,6 @@
 # RSGM_ROS
 approximate_sync: true
-disp_count: 64
+disp_count: 128
 # sgm_5x5, hwcs_census_9x7
 disparity_method: hwcs_census_9x7
 downsample: false
@@ -14,7 +14,7 @@ threads: 4
 lr_check: true
 median_filter: true
 paths: 8
-sub_pixel_refine: -1    # It is better when equals 0, but for our application we will choose -1
+sub_pixel_refine: 0    # It is better when equals 0, but for our application we will choose -1
 number_of_passes: 2
 rl_check: true
 invalid_disparity_cost: 16

@@ -1,6 +1,10 @@
 src/rSGM/*
 src/rSGMv1.0.zip
 *.kdev4
+src/rSGM.bak.tar.gz
+src/rSGM.bak/
+tests/
+
 
 
 # Compiled Object files
