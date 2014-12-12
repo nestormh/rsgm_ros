@@ -240,12 +240,17 @@ void RSGM_ROS::process(const sensor_msgs::ImageConstPtr& l_image_msg,
 RSGM_ROS::MyImage_t RSGM_ROS::fromCVtoMyImage(const cv::Mat& img)
 {
     MyImage_t myImg;
-    const uint32 & width = img.cols;
-    const uint32 & height = img.rows;
+    uint32 width = img.cols;
+    uint32 height = img.rows;
+    
+    if (width % 4 != 0) {
+        width = floor(width / 4) * 4;
+    } 
+    cv::Mat roi(img, cv::Rect(0, 0, width, height));
     
     // copy values
     MyImage_Data_t* data = (MyImage_Data_t*)_mm_malloc(width * height * sizeof(MyImage_Data_t), 16);
-    memcpy(data, img.data, width*height*sizeof(MyImage_Data_t));
+    memcpy(data, roi.data, width*height*sizeof(MyImage_Data_t));
     
     myImg.setAttributes(width, height, data);
     
