@@ -26,9 +26,9 @@
 
 #include "rSGM/src/MyImage.hpp"
 #include "rSGM/src/rSGMCmd.cpp"
-#include </opt/ros/indigo/include/sensor_msgs/Image.h>
-#include </opt/ros/indigo/include/cv_bridge/cv_bridge.h>
-#include </opt/ros/indigo/include/image_geometry/stereo_camera_model.h>
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+#include <image_geometry/stereo_camera_model.h>
 
 #include <stereo_msgs/DisparityImage.h>
 
@@ -275,8 +275,8 @@ void RSGM_ROS::publish_point_cloud(const sensor_msgs::ImageConstPtr& l_image_msg
                                    const sensor_msgs::CameraInfoConstPtr& l_info_msg, 
                                    const sensor_msgs::CameraInfoConstPtr& r_info_msg)
 {
-    if (m_pointCloudPub.getNumSubscribers() == 0)
-        return;
+//     if (m_pointCloudPub.getNumSubscribers() == 0)
+//         return;
     
     try
     {

@@ -1,0 +1,25 @@
+# RSGM_ROS
+approximate_sync: true
+disp_count: 128
+# sgm_5x5, hwcs_census_9x7
+disparity_method: hwcs_census_9x7
+downsample: true
+paths: 8
+# standard_sgm, striped_sgm, striped_sgm_subsample_2, striped_sgm_subsample_4
+sampling_method: striped_sgm
+# depth_encoding_16u, depth_encoding_32f
+depth_encoding: depth_encoding_16u
+strips: 4
+threads: 4
+lr_check: true
+median_filter: true
+paths: 8
+sub_pixel_refine: 0    # It is better when equals 0, but for our application we will choose -1
+number_of_passes: 2
+rl_check: true
+invalid_disparity_cost: 16
+gamma: 100
+alpha: 0.000000
+p1: 7
+p2: 17
+uniqueness: 0.900000
