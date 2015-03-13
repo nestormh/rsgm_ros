@@ -1,6 +1,6 @@
 diff -ruN src/rSGM/src_orig/MyImage.h src/rSGM/src/MyImage.h
 --- src/rSGM/src_orig/MyImage.h	2014-07-13 13:49:50.000000000 +0100
-+++ src/rSGM/src/MyImage.h	2014-11-17 11:59:55.257489921 +0000
++++ src/rSGM/src/MyImage.h	2015-02-27 08:07:56.319823216 +0000
 @@ -64,4 +64,3 @@
  template <typename T>
  void writePGM(MyImage<T>& img, const char* filename, bool verbose);
@@ -8,7 +8,7 @@ diff -ruN src/rSGM/src_orig/MyImage.h src/rSGM/src/MyImage.h
 -#include "MyImage.hpp"
 diff -ruN src/rSGM/src_orig/rSGMCmd.cpp src/rSGM/src/rSGMCmd.cpp
 --- src/rSGM/src_orig/rSGMCmd.cpp	2014-07-13 13:49:50.000000000 +0100
-+++ src/rSGM/src/rSGMCmd.cpp	2014-11-12 11:46:58.449104426 +0000
++++ src/rSGM/src/rSGMCmd.cpp	2015-02-27 08:07:56.319823216 +0000
 @@ -84,7 +84,7 @@
  {
      const int maxDisp = dispCount - 1;
@@ -129,7 +129,7 @@ diff -ruN src/rSGM/src_orig/rSGMCmd.cpp src/rSGM/src/rSGMCmd.cpp
  
 diff -ruN src/rSGM/src_orig/StereoBMHelper.cpp src/rSGM/src/StereoBMHelper.cpp
 --- src/rSGM/src_orig/StereoBMHelper.cpp	2014-07-13 15:09:12.000000000 +0100
-+++ src/rSGM/src/StereoBMHelper.cpp	2014-11-12 11:46:58.449104426 +0000
++++ src/rSGM/src/StereoBMHelper.cpp	2015-02-27 08:07:56.319823216 +0000
 @@ -86,7 +86,7 @@
          }
      }
@@ -472,7 +472,16 @@ diff -ruN src/rSGM/src_orig/StereoBMHelper.cpp src/rSGM/src/StereoBMHelper.cpp
      store[disp+16] = UINT16_MAX-1;
 diff -ruN src/rSGM/src_orig/StereoCommon.h src/rSGM/src/StereoCommon.h
 --- src/rSGM/src_orig/StereoCommon.h	2014-07-13 15:24:48.000000000 +0100
-+++ src/rSGM/src/StereoCommon.h	2014-11-12 11:46:58.449104426 +0000
++++ src/rSGM/src/StereoCommon.h	2015-02-27 08:24:18.871846312 +0000
+@@ -18,7 +18,7 @@
+ // Defines
+ 
+ #define SINT32_MAX      ((sint32) 2147483647)
+-
++# define UINT16_MAX   (65535)
+ #define SINT16_MAX	    ((sint16)0x7fff)
+ 
+ #ifdef WIN32
 @@ -34,7 +34,7 @@
  #else
      #define FORCEINLINE inline __attribute__((always_inline))
@@ -484,7 +493,7 @@ diff -ruN src/rSGM/src_orig/StereoCommon.h src/rSGM/src/StereoCommon.h
  #endif
 diff -ruN src/rSGM/src_orig/StereoSGM.h src/rSGM/src/StereoSGM.h
 --- src/rSGM/src_orig/StereoSGM.h	2014-07-13 14:51:34.000000000 +0100
-+++ src/rSGM/src/StereoSGM.h	2014-11-17 12:12:22.193509924 +0000
++++ src/rSGM/src/StereoSGM.h	2015-02-27 08:07:56.319823216 +0000
 @@ -47,6 +47,27 @@
      {
  
