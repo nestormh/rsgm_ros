@@ -47,7 +47,7 @@
 
 #include "rSGM/src/MyImage.h"
 
-extern template class MyImage<uint8_t>;
+// extern template class MyImage<uint8_t>;
 extern uint32 readNumber(uint8* p, uint32& index);
 
 using namespace std;
