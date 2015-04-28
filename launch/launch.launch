@@ -20,10 +20,8 @@
     <remap from="/$(arg namespace)/filter_manager/disparity_input" to="rsgm_ros/disparity" />
     <remap from="/$(arg namespace)/filter_manager/left/camera_info" to="stereo/left/camera_info" />
     <remap from="/$(arg namespace)/filter_manager/right/camera_info" to="stereo/right/camera_info" />
-    <remap from="/$(arg namespace)/filter_manager/point_cloud" to="rsgm_ros/point_cloud" />
+    <remap from="/$(arg namespace)/filter_manager/point_cloud" to="rsgm_ros/point_cloud_filtered" />
     
-    /verdino/filter_manager/point_cloud
-
     <!-- PCL Manager -->
     <node pkg="nodelet" type="nodelet" name="filter_manager" args="manager" output="screen"/>
 
