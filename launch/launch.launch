@@ -1,0 +1,35 @@
+<launch>
+    <arg name="namespace" default="verdino" />
+    
+    <arg name="disparity_filters_params" 
+         default="$(find disparity_filters)/params/disparity_filters_params.yaml" />
+    
+    <node pkg="rsgm_ros" type="rsgm_ros" name="rsgm_ros" output="screen">
+        <remap from="/$(arg namespace)/stereo/left/$(arg namespace)/image"
+               to="/$(arg namespace)/stereo/left/image_rect_color" />
+        <remap from="/$(arg namespace)/stereo/right/$(arg namespace)/image"
+               to="/$(arg namespace)/stereo/right/image_rect_color" />
+        
+        <rosparam file="$(find rsgm_ros)/params/rsgm_ros_params_verdino.yaml" command="load" ns="" />
+
+    <param name="approximate_sync" value="true"/>
+    </node>
+
+    <!--     I must place the remap here. For some reason, it is ignored in other location -->
+    <remap from="/$(arg namespace)/filter_manager/left/image" to="stereo/left/image_rect_color" />
+    <remap from="/$(arg namespace)/filter_manager/disparity_input" to="rsgm_ros/disparity" />
+    <remap from="/$(arg namespace)/filter_manager/left/camera_info" to="stereo/left/camera_info" />
+    <remap from="/$(arg namespace)/filter_manager/right/camera_info" to="stereo/right/camera_info" />
+    <remap from="/$(arg namespace)/filter_manager/point_cloud" to="rsgm_ros/point_cloud" />
+    
+    /verdino/filter_manager/point_cloud
+
+    <!-- PCL Manager -->
+    <node pkg="nodelet" type="nodelet" name="filter_manager" args="manager" output="screen"/>
+
+    <node pkg="nodelet" type="nodelet" name="DisparityFiltersNodelet"
+        args="load disparity_filters/DisparityFiltersNodelet filter_manager" output="screen">
+
+    </node>
+    <rosparam file="$(arg disparity_filters_params)" command="load" ns="" />
+</launch>
